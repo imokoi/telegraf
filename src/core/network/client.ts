@@ -9,9 +9,7 @@ import fetch, { RequestInit } from 'node-fetch'
 import * as path from 'path'
 import { URL } from 'url'
 import { hasProp, hasPropType } from '../helpers/check'
-import { compactOptions } from '../helpers/compact'
 import { InputFile, Opts, Telegram } from '../types/typegram'
-import TelegramError from './error'
 import MultipartStream from './multipart-stream'
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const debug = require('debug')('telegraf:client')
@@ -268,13 +266,13 @@ async function answerToWebhook(
   payload: Opts<keyof Telegram>,
   options: ApiClient.Options
 ): Promise<true> {
-  if (!includesMedia(payload)) {
+  // if (!includesMedia(payload)) {
     if (!response.headersSent) {
       response.setHeader('content-type', 'application/json')
     }
     response.end(JSON.stringify(payload), 'utf-8')
     return true
-  }
+  // }
 
   const { headers, body } = await buildFormDataConfig(
     payload,
@@ -301,96 +299,5 @@ function redactToken(error: Error): never {
 }
 
 type Response = http.ServerResponse
-class ApiClient {
-  readonly options: ApiClient.Options
-
-  constructor(
-    readonly token: string,
-    options?: Partial<ApiClient.Options>,
-    private readonly response?: Response
-  ) {
-    this.options = {
-      ...DEFAULT_OPTIONS,
-      ...compactOptions(options),
-    }
-    if (this.options.apiRoot.startsWith('http://')) {
-      this.options.agent = undefined
-    }
-  }
-
-  /**
-   * If set to `true`, first _eligible_ call will avoid performing a POST request.
-   * Note that such a call:
-   * 1. cannot report errors or return meaningful values,
-   * 2. resolves before bot API has a chance to process it,
-   * 3. prematurely confirms the update as processed.
-   *
-   * https://core.telegram.org/bots/faq#how-can-i-make-requests-in-response-to-updates
-   * https://github.com/telegraf/telegraf/pull/1250
-   */
-  set webhookReply(enable: boolean) {
-    this.options.webhookReply = enable
-  }
-
-  get webhookReply() {
-    return this.options.webhookReply
-  }
-
-  async callApi<M extends keyof Telegram>(
-    method: M,
-    payload: Opts<M>,
-    { signal }: ApiClient.CallApiOptions = {}
-  ): Promise<ReturnType<Telegram[M]>> {
-    const { token, options, response } = this
-    console.log('options:', options)
-    if (
-      options.webhookReply &&
-      WEBHOOK_REPLY_METHOD_ALLOWLIST.has(method)
-    ) {
-      debug('Call via webhook', method, payload)
-      // @ts-expect-error using webhookReply is an optimisation that doesn't respond with normal result
-      // up to the user to deal with this
-      return await answerToWebhook(response, { method, ...payload }, options)
-    }
-
-    if (!token) {
-      throw new TelegramError({
-        error_code: 401,
-        description: 'Bot Token is required',
-      })
-    }
-
-    debug('HTTP call', method, payload)
-
-    const config: RequestInit = includesMedia(payload)
-      ? await buildFormDataConfig(
-          { method, ...payload },
-          options.attachmentAgent
-        )
-      : await buildJSONConfig(payload)
-    const apiUrl = new URL(
-      `./${options.apiMode}${token}${options.testEnv ? '/test' : ''}/${method}`,
-      options.apiRoot
-    )
-    config.agent = options.agent
-    // @ts-expect-error AbortSignal shim is missing some props from Request.AbortSignal
-    config.signal = signal
-    config.timeout = 500_000 // ms
-    const res = await fetch(apiUrl, config).catch(redactToken)
-    if (res.status >= 500) {
-      const errorPayload = {
-        error_code: res.status,
-        description: res.statusText,
-      }
-      throw new TelegramError(errorPayload, { method, payload })
-    }
-    const data = await res.json()
-    if (!data.ok) {
-      debug('API call failed', data)
-      throw new TelegramError(data, { method, payload })
-    }
-    return data.result
-  }
-}
 
 export default ApiClient
