@@ -1,23 +1,24 @@
 /* eslint @typescript-eslint/restrict-template-expressions: [ "error", { "allowNumber": true, "allowBoolean": true } ] */
+import { AbortSignal } from 'abort-controller'
 import * as crypto from 'crypto'
 import * as fs from 'fs'
-import { stat, realpath } from 'fs/promises'
+import { realpath, stat } from 'fs/promises'
 import * as http from 'http'
 import * as https from 'https'
-import * as path from 'path'
 import fetch, { RequestInit } from 'node-fetch'
-import { hasProp, hasPropType } from '../helpers/check'
-import { InputFile, Opts, Telegram } from '../types/typegram'
-import { AbortSignal } from 'abort-controller'
-import { compactOptions } from '../helpers/compact'
-import MultipartStream from './multipart-stream'
-import TelegramError from './error'
+import * as path from 'path'
 import { URL } from 'url'
+import { hasProp, hasPropType } from '../helpers/check'
+import { compactOptions } from '../helpers/compact'
+import { InputFile, Opts, Telegram } from '../types/typegram'
+import TelegramError from './error'
+import MultipartStream from './multipart-stream'
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const debug = require('debug')('telegraf:client')
 const { isStream } = MultipartStream
 
 const WEBHOOK_REPLY_METHOD_ALLOWLIST = new Set<keyof Telegram>([
+  "sendMessage",
   'answerCallbackQuery',
   'answerInlineQuery',
   'deleteMessage',
@@ -341,10 +342,9 @@ class ApiClient {
     { signal }: ApiClient.CallApiOptions = {}
   ): Promise<ReturnType<Telegram[M]>> {
     const { token, options, response } = this
-
+    console.log('options:', options)
     if (
       options.webhookReply &&
-      response?.writableEnded === false &&
       WEBHOOK_REPLY_METHOD_ALLOWLIST.has(method)
     ) {
       debug('Call via webhook', method, payload)
