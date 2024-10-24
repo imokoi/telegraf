@@ -266,28 +266,11 @@ async function answerToWebhook(
   payload: Opts<keyof Telegram>,
   options: ApiClient.Options
 ): Promise<true> {
-  // if (!includesMedia(payload)) {
     if (!response.headersSent) {
       response.setHeader('content-type', 'application/json')
     }
     response.end(JSON.stringify(payload), 'utf-8')
     return true
-  // }
-
-  const { headers, body } = await buildFormDataConfig(
-    payload,
-    options.attachmentAgent
-  )
-  if (!response.headersSent) {
-    for (const [key, value] of Object.entries(headers)) {
-      response.setHeader(key, value)
-    }
-  }
-  await new Promise((resolve) => {
-    response.on('finish', resolve)
-    body.pipe(response)
-  })
-  return true
 }
 
 function redactToken(error: Error): never {
