@@ -18,7 +18,7 @@ const debug = require('debug')('telegraf:client')
 const { isStream } = MultipartStream
 
 const WEBHOOK_REPLY_METHOD_ALLOWLIST = new Set<keyof Telegram>([
-  "sendMessage",
+  'sendMessage',
   'answerCallbackQuery',
   'answerInlineQuery',
   'deleteMessage',
@@ -268,27 +268,10 @@ async function answerToWebhook(
   payload: Opts<keyof Telegram>,
   options: ApiClient.Options
 ): Promise<true> {
-  if (1==1) {
-    if (!response.headersSent) {
-      response.setHeader('content-type', 'application/json')
-    }
-    response.end(JSON.stringify(payload), 'utf-8')
-    return true
-  }
-
-  const { headers, body } = await buildFormDataConfig(
-    payload,
-    options.attachmentAgent
-  )
   if (!response.headersSent) {
-    for (const [key, value] of Object.entries(headers)) {
-      response.setHeader(key, value)
-    }
+    response.setHeader('content-type', 'application/json')
   }
-  await new Promise((resolve) => {
-    response.on('finish', resolve)
-    body.pipe(response)
-  })
+  response.end(JSON.stringify(payload), 'utf-8')
   return true
 }
 
@@ -342,11 +325,7 @@ class ApiClient {
     { signal }: ApiClient.CallApiOptions = {}
   ): Promise<ReturnType<Telegram[M]>> {
     const { token, options, response } = this
-    console.log('options:', options)
-    if (
-      options.webhookReply &&
-      WEBHOOK_REPLY_METHOD_ALLOWLIST.has(method)
-    ) {
+    if (options.webhookReply && WEBHOOK_REPLY_METHOD_ALLOWLIST.has(method)) {
       debug('Call via webhook', method, payload)
       // @ts-expect-error using webhookReply is an optimisation that doesn't respond with normal result
       // up to the user to deal with this
